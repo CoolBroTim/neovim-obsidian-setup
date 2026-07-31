@@ -1,13 +1,16 @@
 #!/usr/bin/env python3
 """
 AI Note Sorter for Obsidian / Neovim Vault (PARA Method)
+Powered by Gemini 3.6 Flash AI & Fallback NLP Classification.
 Scans 00-Inbox/ for notes and categorizes them into 10-Projects, 20-Areas, 30-Resources, or 40-Archive.
 """
 
 import os
 import sys
 import shutil
+import json
 import subprocess
+import urllib.request
 from pathlib import Path
 
 VAULT_DIR = Path("/home/timothy/Notes").expanduser()
@@ -20,9 +23,53 @@ TARGET_DIRS = {
     "archive": VAULT_DIR / "40-Archive",
 }
 
-def analyze_note(file_path: Path) -> str:
-    text = file_path.read_text(encoding="utf-8", errors="ignore").lower()
-    title = file_path.stem.lower()
+def call_gemini_ai(title: str, text: str) -> str:
+    """
+    Asks Gemini 3.6 Flash to classify the note into one of the 4 PARA categories.
+    """
+    prompt = f"""You are a personal note organization assistant using the PARA Method.
+Categorize the following note into EXACTLY ONE of these four categories:
+- projects (active short-term goals or tasks)
+- areas (long-term responsibilities, health, finance, system config, work)
+- resources (guides, cheat-sheets, manuals, reference info, ideas)
+- archive (completed, inactive, or old notes)
+
+Note Title: {title}
+Note Snippet: {text[:500]}
+
+Respond with ONLY the single category name in lowercase (projects, areas, resources, or archive).
+"""
+    # 1. Try Antigravity / Gemini CLI if available
+    try:
+        res = subprocess.run(
+            ["agy", "run", "--model", "gemini-3.6-flash", prompt],
+            capture_output=True,
+            text=True,
+            timeout=10
+        )
+        if res.returncode == 0 and res.stdout.strip().lower() in TARGET_DIRS:
+            return res.stdout.strip().lower()
+    except Exception:
+        pass
+
+    # 2. Try GEMINI_API_KEY environment variable if present
+    api_key = os.environ.get("GEMINI_API_KEY")
+    if api_key:
+        try:
+            url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key={api_key}"
+            payload = json.dumps({"contents": [{"parts": [{"text": prompt}]}]}).encode("utf-8")
+            req = urllib.request.Request(url, data=payload, headers={"Content-Type": "application/json"})
+            with urllib.request.urlopen(req, timeout=5) as response:
+                result = json.loads(response.read().decode("utf-8"))
+                cat = result['candidates'][0]['content']['parts'][0]['text'].strip().lower()
+                if cat in TARGET_DIRS:
+                    return cat
+        except Exception:
+            pass
+
+    # 3. Fallback: Fast Local Keyword Classifier
+    text_lower = text.lower()
+    title_lower = title.lower()
 
     project_keywords = ["todo", "task", "deadline", "project", "fix", "feature", "roadmap", "milestone", "build", "v1", "v2"]
     area_keywords = ["health", "finance", "budget", "fitness", "workout", "routine", "arch", "linux", "macos", "config", "system", "maintenance", "journal"]
@@ -30,16 +77,14 @@ def analyze_note(file_path: Path) -> str:
     archive_keywords = ["done", "completed", "old", "backup", "deprecated", "archive", "2023", "2024", "2025"]
 
     scores = {
-        "projects": sum(2 for k in project_keywords if k in title) + sum(1 for k in project_keywords if k in text),
-        "areas": sum(2 for k in area_keywords if k in title) + sum(1 for k in area_keywords if k in text),
-        "resources": sum(2 for k in resource_keywords if k in title) + sum(1 for k in resource_keywords if k in text),
-        "archive": sum(2 for k in archive_keywords if k in title) + sum(1 for k in archive_keywords if k in text),
+        "projects": sum(2 for k in project_keywords if k in title_lower) + sum(1 for k in project_keywords if k in text_lower),
+        "areas": sum(2 for k in area_keywords if k in title_lower) + sum(1 for k in area_keywords if k in text_lower),
+        "resources": sum(2 for k in resource_keywords if k in title_lower) + sum(1 for k in resource_keywords if k in text_lower),
+        "archive": sum(2 for k in archive_keywords if k in title_lower) + sum(1 for k in archive_keywords if k in text_lower),
     }
 
     best_cat = max(scores, key=scores.get)
-    if scores[best_cat] == 0:
-        best_cat = "resources"
-    return best_cat
+    return best_cat if scores[best_cat] > 0 else "resources"
 
 def main():
     if not INBOX_DIR.exists():
@@ -55,7 +100,10 @@ def main():
 
     moved_count = 0
     for note in inbox_files:
-        category = analyze_note(note)
+        title = note.stem
+        text = note.read_text(encoding="utf-8", errors="ignore")
+        
+        category = call_gemini_ai(title, text)
         dest_dir = TARGET_DIRS[category]
         dest_path = dest_dir / note.name
 
@@ -66,7 +114,7 @@ def main():
 
         shutil.move(str(note), str(dest_path))
         rel_dest = dest_path.relative_to(VAULT_DIR)
-        print(f"  ✓ Moved '{note.name}' -> {rel_dest}")
+        print(f"  🤖 Gemini AI -> Moved '{note.name}' -> {rel_dest}")
         moved_count += 1
 
     try:
