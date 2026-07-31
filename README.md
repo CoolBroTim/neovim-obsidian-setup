@@ -29,7 +29,7 @@ Follow these simple steps after running `install.sh`:
 
 ### 1. Launch Your Notes Vault
 * **From Terminal:** Type `notes` and press Enter.
-* **From App Launcher:** Open **Rofi**, **Wofi**, or **Hyprlauncher** and search for `Notes Vault`.
+* **From App Launcher:** Open **Rofi**, **Wofi**, or **Your Preferred Application Launcher** and search for `Notes Vault`.
 
 ### 2. View the Built-In Cheat Sheet (`<Space>h`)
 * Inside Neovim, press **`<Space>h`** anytime to open an interactive floating cheat sheet listing all shortcuts and navigation commands. Press `q` or `<Esc>` to close it.
