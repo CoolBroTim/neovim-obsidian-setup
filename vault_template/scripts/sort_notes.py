@@ -4,8 +4,8 @@ Universal AI Note Sorter for Obsidian / Neovim Vault (PARA Method)
 Supports:
   1. Cloud API Key (Gemini, OpenAI, or Anthropic auto-detected)
   2. Google Antigravity CLI / Gemini 3.6 Flash
-  3. Codex CLI
-  4. Claude Code CLI
+  3. Codex CLI (gpt-4o-mini lowest model)
+  4. Claude Code CLI (claude-3-5-haiku lowest model)
   5. Ollama Local LLM (qwen2.5:0.5b / llama3.2)
   6. Rule-Based Fallback Classifier
 
@@ -58,8 +58,9 @@ def call_antigravity(prompt: str) -> str:
     raise RuntimeError("Antigravity CLI failed")
 
 def call_codex_cli(prompt: str) -> str:
+    # Use lowest / fastest model: gpt-4o-mini
     res = subprocess.run(
-        ["codex", "exec", prompt],
+        ["codex", "exec", "--model", "gpt-4o-mini", prompt],
         capture_output=True, text=True, timeout=10
     )
     if res.returncode == 0:
@@ -67,8 +68,9 @@ def call_codex_cli(prompt: str) -> str:
     raise RuntimeError("Codex CLI failed")
 
 def call_claude_cli(prompt: str) -> str:
+    # Use lowest / fastest model: claude-3-5-haiku
     res = subprocess.run(
-        ["claude", "-p", prompt],
+        ["claude", "-p", "--model", "claude-3-5-haiku", prompt],
         capture_output=True, text=True, timeout=10
     )
     if res.returncode == 0:
@@ -165,8 +167,8 @@ def run_setup_wizard() -> dict:
     print("Please choose your preferred AI Provider for note classification:\n")
     print("  1) Cloud API Key (Gemini / OpenAI / Anthropic)")
     print("  2) Google Antigravity CLI / Gemini 3.6 Flash (agy)")
-    print("  3) Codex CLI (codex)")
-    print("  4) Claude Code CLI (claude)")
+    print("  3) Codex CLI (codex --model gpt-4o-mini)")
+    print("  4) Claude Code CLI (claude --model claude-3-5-haiku)")
     print("  5) Ollama Local LLM (qwen2.5:0.5b / llama3.2 - 100% Private Offline AI)")
     print("  6) Fast Rule-Based NLP Classifier (No API key, zero requirements)\n")
 
@@ -178,7 +180,7 @@ def run_setup_wizard() -> dict:
         provider = detect_api_provider(api_key)
         
         provider_names = {
-            "gemini": "Google Gemini API",
+            "gemini": "Google Gemini API (Gemini 1.5 Flash)",
             "openai": "OpenAI API (GPT-4o-mini)",
             "anthropic": "Anthropic Claude API (Claude 3.5 Haiku)"
         }
