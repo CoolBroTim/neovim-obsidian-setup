@@ -18,6 +18,7 @@ local help_text = [=[
   <Space>nt     Search Note Tags (Obsidian tags)
   <Space>no     Open current note in Obsidian Desktop GUI App
   <Space>ai     Run Gemini AI script to auto-sort notes & auto-push to GitHub
+  <Space>ac     Configure AI Sorter Provider (Wizard split terminal)
   gf            Follow Wikilink under cursor (e.g. opens [[My Note]])
   <Tab>         Toggle Markdown Checkbox ([ ] <-> [x])
   gcc           Comment / Uncomment line (adds <!-- comment -->)

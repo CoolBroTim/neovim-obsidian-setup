@@ -13,6 +13,8 @@ return {
       { "<leader>g", group = "Git Synchronization" },
       { "<leader>a", group = "AI Automation" },
       { "<leader>c", group = "Code & Clear" },
+      { "<leader>ai", desc = "Sort Notes with AI" },
+      { "<leader>ac", desc = "Configure AI Sorter Wizard" },
     },
   },
 }

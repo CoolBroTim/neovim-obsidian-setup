@@ -51,5 +51,8 @@ keymap("n", "<leader>gp", "<cmd>!git -C /home/timothy/Notes add -A && (git -C /h
 -- Run Gemini AI Note Sorting Script (<Space>ai)
 keymap("n", "<leader>ai", "<cmd>!/home/timothy/Notes/scripts/sort_notes.py<CR>", vim.tbl_extend("force", opts, { desc = "Sort Notes with AI" }))
 
--- Configure AI Sorter Provider Wizard (<Space>ac)
-keymap("n", "<leader>ac", "<cmd>terminal python3 /home/timothy/Notes/scripts/sort_notes.py --config<CR>", vim.tbl_extend("force", opts, { desc = "Configure AI Sorter Provider" }))
+-- Configure AI Sorter Provider Wizard (<Space>ac) -> Opens split terminal in insert mode
+keymap("n", "<leader>ac", function()
+  vim.cmd("split | terminal python3 /home/timothy/Notes/scripts/sort_notes.py --config")
+  vim.cmd("startinsert")
+end, vim.tbl_extend("force", opts, { desc = "Configure AI Sorter Wizard" }))
