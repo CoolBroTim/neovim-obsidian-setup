@@ -48,6 +48,12 @@ keymap("n", "<leader>mp", "<cmd>MarkdownPreviewToggle<CR>", vim.tbl_extend("forc
 -- Git Sync Shortcut (<Space>gp) -> Stages all additions/deletions, commits, and pushes to GitHub
 keymap("n", "<leader>gp", "<cmd>!git -C /home/timothy/Notes add -A && (git -C /home/timothy/Notes commit -m 'Sync notes' || true) && git -C /home/timothy/Notes push<CR>", vim.tbl_extend("force", opts, { desc = "Commit and Push Notes to GitHub" }))
 
+-- Configure Git Remote & Auth Wizard (<Space>gc) -> Opens split terminal
+keymap("n", "<leader>gc", function()
+  vim.cmd("split | terminal bash /home/timothy/Notes/scripts/setup_git.sh")
+  vim.cmd("startinsert")
+end, vim.tbl_extend("force", opts, { desc = "Configure Git Remote & Auth Wizard" }))
+
 -- Run Gemini AI Note Sorting Script (<Space>ai)
 keymap("n", "<leader>ai", "<cmd>!/home/timothy/Notes/scripts/sort_notes.py<CR>", vim.tbl_extend("force", opts, { desc = "Sort Notes with AI" }))
 

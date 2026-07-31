@@ -43,9 +43,6 @@ fi
 read -r -p "$(echo -e "${BOLD}Terminal emulator for desktop launchers [Detected: $DETECTED_TERM]: ${RESET}")" USER_TERM
 TERM_EMULATOR="${USER_TERM:-$DETECTED_TERM}"
 
-# Git Remote Prompt
-read -r -p "$(echo -e "${BOLD}Enter GitHub/GitLab remote URL for notes backup (press Enter to skip): ${RESET}")" GIT_REMOTE
-
 echo -e "\n${GREEN}✓ Installing vault at: ${BOLD}$VAULT_PATH${RESET}"
 echo -e "${GREEN}✓ Using terminal launcher: ${BOLD}$TERM_EMULATOR${RESET}\n"
 
@@ -96,12 +93,12 @@ for folder in 00-Inbox 10-Projects 20-Areas 30-Resources 40-Archive Daily Templa
   touch "$VAULT_PATH/$folder/.gitkeep"
 done
 
-# Copy AI Note Sorter script
-cp "$SCRIPT_DIR/vault_template/scripts/sort_notes.py" "$VAULT_PATH/scripts/sort_notes.py"
-chmod +x "$VAULT_PATH/scripts/sort_notes.py"
-sed -i "s|/home/timothy/Notes|$VAULT_PATH|g" "$VAULT_PATH/scripts/sort_notes.py"
+# Copy scripts
+cp -r "$SCRIPT_DIR/vault_template/scripts/"* "$VAULT_PATH/scripts/"
+chmod +x "$VAULT_PATH/scripts/"*.py "$VAULT_PATH/scripts/"*.sh 2>/dev/null || true
+find "$VAULT_PATH/scripts" -type f -exec sed -i "s|/home/timothy/Notes|$VAULT_PATH|g" {} +
 
-# Initialize Git
+# Initialize Git repository
 if [ ! -d "$VAULT_PATH/.git" ]; then
   cd "$VAULT_PATH"
   git init
@@ -119,17 +116,16 @@ EOF
   git commit -m "Initial commit: PARA Vault structure" || true
 fi
 
-# Set Git Remote if provided
-if [ -n "$GIT_REMOTE" ]; then
-  echo -e "${BLUE}🔗 Connecting Git remote: $GIT_REMOTE${RESET}"
-  cd "$VAULT_PATH"
-  git remote add origin "$GIT_REMOTE" 2>/dev/null || git remote set-url origin "$GIT_REMOTE"
-  git branch -M main
-  git push -u origin main || echo -e "${YELLOW}Could not push automatically. You can run 'git push' later.${RESET}"
+# ------------------------------------------------------------------------------
+# 5. Git Remote & Authentication Setup Wizard
+# ------------------------------------------------------------------------------
+read -r -p "$(echo -e "${BOLD}Would you like to connect your Notes vault to GitHub/GitLab/Codeberg now? [y/N]: ${RESET}")" SETUP_GIT_CHOICE
+if [[ "$SETUP_GIT_CHOICE" =~ ^[Yy]$ ]]; then
+  bash "$VAULT_PATH/scripts/setup_git.sh" "$VAULT_PATH"
 fi
 
 # ------------------------------------------------------------------------------
-# 5. Deploy Aliases & Desktop Launcher
+# 6. Deploy Aliases & Desktop Launcher
 # ------------------------------------------------------------------------------
 echo -e "${BLUE}🖥️ Configuring terminal aliases & application launcher...${RESET}"
 
@@ -162,7 +158,7 @@ EOF
 update-desktop-database "$HOME/.local/share/applications" 2>/dev/null || true
 
 # ------------------------------------------------------------------------------
-# 6. Pre-sync Neovim Plugins
+# 7. Pre-sync Neovim Plugins
 # ------------------------------------------------------------------------------
 echo -e "${BLUE}⚡ Initializing Neovim plugins headlessly...${RESET}"
 "$HOME/.local/bin/nvim" --headless "+Lazy! sync" +qa >/dev/null 2>&1 || true

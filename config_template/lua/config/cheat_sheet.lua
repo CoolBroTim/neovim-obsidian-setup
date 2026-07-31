@@ -8,7 +8,8 @@ local help_text = [=[
   NOTE-TAKING & OBSIDIAN SHORTCUTS
   --------------------------------------------------------------------------
   <Space>nd     Create or Open TODAY'S DAILY NOTE (Auto-saved)
-  <Space>gp     PUSH note commits directly to GitHub remote
+  <Space>gp     PUSH note commits directly to GitHub/GitLab remote
+  <Space>gc     Configure GIT REMOTE & AUTHENTICATION (Setup Wizard)
   <Space>ff     Find Note File by name (Telescope fuzzy finder)
   <Space>fg     Find Text / Live Grep across all notes in vault
   <Space>ft     Search all TODO:, FIXME:, NOTE: tasks across vault

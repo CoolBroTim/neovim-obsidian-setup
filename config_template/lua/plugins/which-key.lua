@@ -13,6 +13,8 @@ return {
       { "<leader>g", group = "Git Synchronization" },
       { "<leader>a", group = "AI Automation" },
       { "<leader>c", group = "Code & Clear" },
+      { "<leader>gp", desc = "Push Notes to Remote Git" },
+      { "<leader>gc", desc = "Configure Git Remote & Auth" },
       { "<leader>ai", desc = "Sort Notes with AI" },
       { "<leader>ac", desc = "Configure AI Sorter Wizard" },
     },
