@@ -2,11 +2,11 @@
 """
 Universal AI Note Sorter for Obsidian / Neovim Vault (PARA Method)
 Supports:
-  1. Google Antigravity CLI / Gemini 3.6 Flash (agy)
-  2. Google Gemini API (GEMINI_API_KEY)
-  3. OpenAI / Codex API (OPENAI_API_KEY)
-  4. Anthropic Claude API (ANTHROPIC_API_KEY)
-  5. Ollama Local LLM (qwen2.5:0.5b / llama3.2:1b)
+  1. Cloud API Key (Gemini, OpenAI, or Anthropic auto-detected)
+  2. Google Antigravity CLI / Gemini 3.6 Flash
+  3. Codex CLI
+  4. Claude Code CLI
+  5. Ollama Local LLM (qwen2.5:0.5b / llama3.2)
   6. Rule-Based Fallback Classifier
 
 Configuration stored in ~/.config/note-sorter/config.json
@@ -56,6 +56,24 @@ def call_antigravity(prompt: str) -> str:
     if res.returncode == 0:
         return res.stdout.strip().lower()
     raise RuntimeError("Antigravity CLI failed")
+
+def call_codex_cli(prompt: str) -> str:
+    res = subprocess.run(
+        ["codex", "exec", prompt],
+        capture_output=True, text=True, timeout=10
+    )
+    if res.returncode == 0:
+        return res.stdout.strip().lower()
+    raise RuntimeError("Codex CLI failed")
+
+def call_claude_cli(prompt: str) -> str:
+    res = subprocess.run(
+        ["claude", "-p", prompt],
+        capture_output=True, text=True, timeout=10
+    )
+    if res.returncode == 0:
+        return res.stdout.strip().lower()
+    raise RuntimeError("Claude Code CLI failed")
 
 def call_gemini_api(prompt: str, api_key: str) -> str:
     url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key={api_key}"
@@ -131,32 +149,50 @@ def call_rule_based(title: str, text: str) -> str:
 # Setup Wizard & Configuration
 # ------------------------------------------------------------------------------
 
+def detect_api_provider(api_key: str) -> str:
+    if api_key.startswith("AIza"):
+        return "gemini"
+    elif api_key.startswith("sk-ant"):
+        return "anthropic"
+    elif api_key.startswith("sk-"):
+        return "openai"
+    return "gemini"
+
 def run_setup_wizard() -> dict:
     print("\n========================================================================")
     print("      🤖 AI NOTE SORTER INITIAL SETUP WIZARD                           ")
     print("========================================================================\n")
     print("Please choose your preferred AI Provider for note classification:\n")
-    print("  1) Google Antigravity CLI / Gemini 3.6 Flash (Default for AGY environment)")
-    print("  2) Google Gemini API (Free key from AI Studio)")
-    print("  3) OpenAI API (GPT-4o-mini / Codex)")
-    print("  4) Anthropic Claude API (Claude 3.5 Haiku)")
-    print("  5) Ollama Local LLM (qwen2.5:0.5b / llama3.2 - 100% Private Local AI)")
+    print("  1) Cloud API Key (Gemini / OpenAI / Anthropic)")
+    print("  2) Google Antigravity CLI / Gemini 3.6 Flash (agy)")
+    print("  3) Codex CLI (codex)")
+    print("  4) Claude Code CLI (claude)")
+    print("  5) Ollama Local LLM (qwen2.5:0.5b / llama3.2 - 100% Private Offline AI)")
     print("  6) Fast Rule-Based NLP Classifier (No API key, zero requirements)\n")
 
-    choice = input("Select provider [1-6, default 1]: ").strip() or "1"
+    choice = input("Select option [1-6, default 2]: ").strip() or "2"
     config = {}
 
     if choice == "1":
-        config["provider"] = "antigravity"
+        api_key = input("\nEnter your Cloud API Key: ").strip()
+        provider = detect_api_provider(api_key)
+        
+        provider_names = {
+            "gemini": "Google Gemini API",
+            "openai": "OpenAI API (GPT-4o-mini)",
+            "anthropic": "Anthropic Claude API (Claude 3.5 Haiku)"
+        }
+        print(f"\n✓ Detected Provider: {provider_names.get(provider, 'Gemini API')}")
+        
+        config["provider"] = provider
+        config["api_key"] = api_key
+
     elif choice == "2":
-        config["provider"] = "gemini"
-        config["api_key"] = input("Enter your GEMINI_API_KEY: ").strip()
+        config["provider"] = "antigravity"
     elif choice == "3":
-        config["provider"] = "openai"
-        config["api_key"] = input("Enter your OPENAI_API_KEY: ").strip()
+        config["provider"] = "codex"
     elif choice == "4":
-        config["provider"] = "anthropic"
-        config["api_key"] = input("Enter your ANTHROPIC_API_KEY: ").strip()
+        config["provider"] = "claude"
     elif choice == "5":
         config["provider"] = "ollama"
         model_name = input("Enter Ollama model name [default: qwen2.5:0.5b]: ").strip() or "qwen2.5:0.5b"
@@ -187,6 +223,10 @@ def classify_note(title: str, text: str, config: dict) -> str:
     try:
         if provider == "antigravity":
             cat = call_antigravity(prompt)
+        elif provider == "codex":
+            cat = call_codex_cli(prompt)
+        elif provider == "claude":
+            cat = call_claude_cli(prompt)
         elif provider == "gemini":
             cat = call_gemini_api(prompt, config.get("api_key", ""))
         elif provider == "openai":
@@ -198,12 +238,11 @@ def classify_note(title: str, text: str, config: dict) -> str:
         else:
             cat = call_rule_based(title, text)
 
-        # Parse category from response
         for target in TARGET_DIRS:
             if target in cat:
                 return target
     except Exception as e:
-        print(f"⚠️ Provider {provider} encountered: {e}. Falling back to local classifier...")
+        print(f"⚠️ Provider '{provider}' encountered: {e}. Falling back to local classifier...")
 
     return call_rule_based(title, text)
 
