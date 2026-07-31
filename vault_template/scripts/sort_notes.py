@@ -115,6 +115,18 @@ def call_anthropic_api(prompt: str, api_key: str) -> str:
         result = json.loads(response.read().decode("utf-8"))
         return result['content'][0]['text'].strip().lower()
 
+def check_ollama_status(model_name: str) -> tuple[bool, bool]:
+    """Checks if Ollama server is running and if the model is installed."""
+    try:
+        req = urllib.request.Request("http://localhost:11434/api/tags")
+        with urllib.request.urlopen(req, timeout=3) as response:
+            data = json.loads(response.read().decode("utf-8"))
+            models = [m.get("name", "") for m in data.get("models", [])]
+            has_model = any(model_name.split(":")[0] in m for m in models)
+            return True, has_model
+    except Exception:
+        return False, False
+
 def call_ollama(prompt: str, model_name: str = "qwen2.5:0.5b") -> str:
     url = "http://localhost:11434/api/generate"
     payload = json.dumps({
@@ -128,7 +140,11 @@ def call_ollama(prompt: str, model_name: str = "qwen2.5:0.5b") -> str:
             result = json.loads(response.read().decode("utf-8"))
             return result['response'].strip().lower()
     except Exception as e:
-        print(f"💡 Ollama tip: Start Ollama ('ollama serve') and pull model ('ollama pull {model_name}')")
+        server_up, model_found = check_ollama_status(model_name)
+        if not server_up:
+            print("💡 Ollama tip: Start local server with 'ollama serve'")
+        elif not model_found:
+            print(f"💡 Ollama tip: Pull model with 'ollama pull {model_name}'")
         raise e
 
 def call_rule_based(title: str, text: str) -> str:
@@ -207,6 +223,14 @@ def run_setup_wizard() -> dict:
             config["provider"] = "ollama"
             model_name = input("Enter Ollama model name [default: qwen2.5:0.5b]: ").strip() or "qwen2.5:0.5b"
             config["ollama_model"] = model_name
+            
+            server_up, model_found = check_ollama_status(model_name)
+            if server_up and model_found:
+                print(f"\n✓ Reassurance: Ollama local server active & verified model '{model_name}'!")
+            elif server_up:
+                print(f"\n⚠️ Ollama server active, but '{model_name}' not pulled yet. Run 'ollama pull {model_name}'")
+            else:
+                print(f"\n⚠️ Ollama server offline. Run 'ollama serve' to start it.")
         else:
             config["provider"] = "local"
     except (EOFError, KeyboardInterrupt):
@@ -274,6 +298,17 @@ def main():
     if not inbox_files:
         print("📥 00-Inbox is clean! No unorganized notes found.")
         return
+
+    # Ollama Reassurance Check on Execution
+    if config.get("provider") == "ollama":
+        model_name = config.get("ollama_model", "qwen2.5:0.5b")
+        server_up, model_found = check_ollama_status(model_name)
+        if server_up and model_found:
+            print(f"✓ Ollama server active | Verified model '{model_name}' ready")
+        elif server_up:
+            print(f"⚠️ Ollama server active, but '{model_name}' not found. Run 'ollama pull {model_name}'")
+        else:
+            print("⚠️ Ollama server offline. Run 'ollama serve'")
 
     print(f"🔍 Found {len(inbox_files)} note(s) in 00-Inbox to organize [Provider: {config.get('provider', 'local')}]:\n")
 
