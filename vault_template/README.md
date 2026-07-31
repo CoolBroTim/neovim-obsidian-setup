@@ -17,7 +17,47 @@ This repository contains your notes stored in standard plain Markdown (`.md`) fo
 
 ---
 
-## 🚀 Ways to Launch Your Vault
+## 📱 Mobile Sync Setup Guide (iPhone & Android)
+
+Follow these 4 simple steps to connect your iPhone or Android phone to your Notes vault via GitHub:
+
+### Step 1: Create a GitHub Personal Access Token (PAT)
+1. On your computer, go to **GitHub.com** $\rightarrow$ Click your profile picture $\rightarrow$ **Settings**.
+2. Scroll down on the left sidebar and click **Developer Settings**.
+3. Click **Personal access tokens** $\rightarrow$ **Tokens (classic)** $\rightarrow$ **Generate new token (classic)**.
+4. Note description: `Obsidian Mobile Sync`.
+5. Expiration: `No expiration`.
+6. Select scopes: Check the **`repo`** box (Full control of private repositories).
+7. Click **Generate token** and **COPY THE TOKEN** (starts with `ghp_...`).
+
+### Step 2: Create an Empty Vault on Mobile
+1. Install **Obsidian** from the **Apple App Store** (iOS) or **Google Play Store** (Android).
+2. Open Obsidian on your phone $\rightarrow$ Tap **Create new vault**.
+3. Name your vault: **`Notes`**.
+4. Tap **Create**.
+
+### Step 3: Install the "Obsidian Git" Plugin
+1. Inside Obsidian on your phone, open **Settings** (Gear icon in sidebar).
+2. Go to **Community plugins** $\rightarrow$ Tap **Turn on community plugins**.
+3. Tap **Browse** $\rightarrow$ Search for **`Obsidian Git`**.
+4. Tap **Install**, then tap **Enable**.
+
+### Step 4: Clone Your GitHub Repository via Command Palette
+1. Open the Obsidian **Command Palette** on your phone (swipe down from top of note screen or tap ribbon icon).
+2. Type and select: **`Obsidian Git: Clone an existing remote repository`**.
+3. **Repository URL:** Paste your GitHub repository URL:
+   `https://github.com/CoolBroTim/notes.git`
+4. When prompted, enter your **GitHub Username** (`CoolBroTim`) and paste your **Personal Access Token** (`ghp_...`).
+5. In Obsidian Settings $\rightarrow$ **Obsidian Git**:
+   * Set **Vault backup interval (minutes):** `5`
+   * Set **Auto Pull Interval (minutes):** `5`
+   * Enable **Pull updates on startup**.
+
+🎉 **You're all set!** Any note you write on your iPhone will automatically sync to your Arch Linux PC, and any note you edit in Neovim will sync to your phone!
+
+---
+
+## 🚀 Ways to Launch Your Vault (Desktop)
 
 1. **Application Launchers (Rofi / Wofi / Hyprlauncher / App Menu):**
    * Search for **"Notes Vault"** in your application launcher and press Enter!
