@@ -7,7 +7,7 @@ Supports:
   3. Codex CLI (gpt-4o-mini lowest model)
   4. Claude Code CLI (claude-3-5-haiku lowest model)
   5. Ollama Local LLM (qwen2.5:0.5b / any model of your choosing)
-  6. Rule-Based Fallback Classifier
+  6. Rule-Based Fallback Classifier (Default: Zero setup required)
 
 Configuration stored in ~/.config/note-sorter/config.json
 """
@@ -180,8 +180,9 @@ def detect_api_provider(api_key: str) -> str:
     return "gemini"
 
 def run_setup_wizard() -> dict:
+    # If running in non-interactive mode (like inside Neovim :! command without TTY), default to local classifier
     if not sys.stdin.isatty():
-        config = {"provider": "antigravity"}
+        config = {"provider": "local"}
         CONFIG_FILE.parent.mkdir(parents=True, exist_ok=True)
         with open(CONFIG_FILE, "w") as f:
             json.dump(config, f, indent=2)
@@ -197,9 +198,9 @@ def run_setup_wizard() -> dict:
         print("  3) Codex CLI (codex --model gpt-4o-mini)")
         print("  4) Claude Code CLI (claude --model claude-3-5-haiku)")
         print("  5) Ollama Local LLM (qwen2.5:0.5b / any model of your choosing - 100% Private)")
-        print("  6) Fast Rule-Based NLP Classifier (No API key, zero requirements)\n")
+        print("  6) Fast Rule-Based NLP Classifier (Default: Zero setup required)\n")
 
-        choice = input("Select option [1-6, default 2]: ").strip() or "2"
+        choice = input("Select option [1-6, default 6]: ").strip() or "6"
         config = {}
 
         if choice == "1":
@@ -234,7 +235,7 @@ def run_setup_wizard() -> dict:
         else:
             config["provider"] = "local"
     except (EOFError, KeyboardInterrupt):
-        config = {"provider": "antigravity"}
+        config = {"provider": "local"}
 
     CONFIG_FILE.parent.mkdir(parents=True, exist_ok=True)
     with open(CONFIG_FILE, "w") as f:
@@ -254,7 +255,7 @@ def load_config(force_wizard: bool = False) -> dict:
 
 def classify_note(title: str, text: str, config: dict) -> str:
     prompt = PROMPT_TEMPLATE.format(title=title, text=text[:500])
-    provider = config.get("provider", "antigravity")
+    provider = config.get("provider", "local")
 
     try:
         if provider == "antigravity":
