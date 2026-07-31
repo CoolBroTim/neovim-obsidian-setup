@@ -1,8 +1,15 @@
 #!/usr/bin/env python3
 """
-AI Note Sorter for Obsidian / Neovim Vault (PARA Method)
-Powered by Gemini 3.6 Flash AI & Fallback NLP Classification.
-Scans 00-Inbox/ for notes and categorizes them into 10-Projects, 20-Areas, 30-Resources, or 40-Archive.
+Universal AI Note Sorter for Obsidian / Neovim Vault (PARA Method)
+Supports:
+  1. Google Antigravity CLI / Gemini 3.6 Flash (agy)
+  2. Google Gemini API (GEMINI_API_KEY)
+  3. OpenAI / Codex API (OPENAI_API_KEY)
+  4. Anthropic Claude API (ANTHROPIC_API_KEY)
+  5. Ollama Local LLM (qwen2.5:0.5b / llama3.2:1b)
+  6. Rule-Based Fallback Classifier
+
+Configuration stored in ~/.config/note-sorter/config.json
 """
 
 import os
@@ -15,6 +22,7 @@ from pathlib import Path
 
 VAULT_DIR = Path("/home/timothy/Notes").expanduser()
 INBOX_DIR = VAULT_DIR / "00-Inbox"
+CONFIG_FILE = Path("~/.config/note-sorter/config.json").expanduser()
 
 TARGET_DIRS = {
     "projects": VAULT_DIR / "10-Projects",
@@ -23,51 +31,84 @@ TARGET_DIRS = {
     "archive": VAULT_DIR / "40-Archive",
 }
 
-def call_gemini_ai(title: str, text: str) -> str:
-    """
-    Asks Gemini 3.6 Flash to classify the note into one of the 4 PARA categories.
-    """
-    prompt = f"""You are a personal note organization assistant using the PARA Method.
+PROMPT_TEMPLATE = """You are a personal note organization assistant using the PARA Method.
 Categorize the following note into EXACTLY ONE of these four categories:
-- projects (active short-term goals or tasks)
+- projects (active short-term goals, tasks, feature builds, deadlines)
 - areas (long-term responsibilities, health, finance, system config, work)
-- resources (guides, cheat-sheets, manuals, reference info, ideas)
-- archive (completed, inactive, or old notes)
+- resources (guides, cheat-sheets, manuals, reference info, ideas, documentation)
+- archive (completed, inactive, old notes)
 
 Note Title: {title}
-Note Snippet: {text[:500]}
+Note Snippet: {text}
 
 Respond with ONLY the single category name in lowercase (projects, areas, resources, or archive).
 """
-    # 1. Try Antigravity / Gemini CLI if available
-    try:
-        res = subprocess.run(
-            ["agy", "run", "--model", "gemini-3.6-flash", prompt],
-            capture_output=True,
-            text=True,
-            timeout=10
-        )
-        if res.returncode == 0 and res.stdout.strip().lower() in TARGET_DIRS:
-            return res.stdout.strip().lower()
-    except Exception:
-        pass
 
-    # 2. Try GEMINI_API_KEY environment variable if present
-    api_key = os.environ.get("GEMINI_API_KEY")
-    if api_key:
-        try:
-            url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key={api_key}"
-            payload = json.dumps({"contents": [{"parts": [{"text": prompt}]}]}).encode("utf-8")
-            req = urllib.request.Request(url, data=payload, headers={"Content-Type": "application/json"})
-            with urllib.request.urlopen(req, timeout=5) as response:
-                result = json.loads(response.read().decode("utf-8"))
-                cat = result['candidates'][0]['content']['parts'][0]['text'].strip().lower()
-                if cat in TARGET_DIRS:
-                    return cat
-        except Exception:
-            pass
+# ------------------------------------------------------------------------------
+# Provider Callers
+# ------------------------------------------------------------------------------
 
-    # 3. Fallback: Fast Local Keyword Classifier
+def call_antigravity(prompt: str) -> str:
+    res = subprocess.run(
+        ["agy", "run", "--model", "gemini-3.6-flash", prompt],
+        capture_output=True, text=True, timeout=10
+    )
+    if res.returncode == 0:
+        return res.stdout.strip().lower()
+    raise RuntimeError("Antigravity CLI failed")
+
+def call_gemini_api(prompt: str, api_key: str) -> str:
+    url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key={api_key}"
+    payload = json.dumps({"contents": [{"parts": [{"text": prompt}]}]}).encode("utf-8")
+    req = urllib.request.Request(url, data=payload, headers={"Content-Type": "application/json"})
+    with urllib.request.urlopen(req, timeout=8) as response:
+        result = json.loads(response.read().decode("utf-8"))
+        return result['candidates'][0]['content']['parts'][0]['text'].strip().lower()
+
+def call_openai_api(prompt: str, api_key: str) -> str:
+    url = "https://api.openai.com/v1/chat/completions"
+    payload = json.dumps({
+        "model": "gpt-4o-mini",
+        "messages": [{"role": "user", "content": prompt}],
+        "temperature": 0.1
+    }).encode("utf-8")
+    req = urllib.request.Request(url, data=payload, headers={
+        "Content-Type": "application/json",
+        "Authorization": f"Bearer {api_key}"
+    })
+    with urllib.request.urlopen(req, timeout=8) as response:
+        result = json.loads(response.read().decode("utf-8"))
+        return result['choices'][0]['message']['content'].strip().lower()
+
+def call_anthropic_api(prompt: str, api_key: str) -> str:
+    url = "https://api.anthropic.com/v1/messages"
+    payload = json.dumps({
+        "model": "claude-3-5-haiku-20241022",
+        "max_tokens": 10,
+        "messages": [{"role": "user", "content": prompt}]
+    }).encode("utf-8")
+    req = urllib.request.Request(url, data=payload, headers={
+        "Content-Type": "application/json",
+        "x-api-key": api_key,
+        "anthropic-version": "2023-06-01"
+    })
+    with urllib.request.urlopen(req, timeout=8) as response:
+        result = json.loads(response.read().decode("utf-8"))
+        return result['content'][0]['text'].strip().lower()
+
+def call_ollama(prompt: str, model_name: str = "qwen2.5:0.5b") -> str:
+    url = "http://localhost:11434/api/generate"
+    payload = json.dumps({
+        "model": model_name,
+        "prompt": prompt,
+        "stream": False
+    }).encode("utf-8")
+    req = urllib.request.Request(url, data=payload, headers={"Content-Type": "application/json"})
+    with urllib.request.urlopen(req, timeout=8) as response:
+        result = json.loads(response.read().decode("utf-8"))
+        return result['response'].strip().lower()
+
+def call_rule_based(title: str, text: str) -> str:
     text_lower = text.lower()
     title_lower = title.lower()
 
@@ -86,7 +127,93 @@ Respond with ONLY the single category name in lowercase (projects, areas, resour
     best_cat = max(scores, key=scores.get)
     return best_cat if scores[best_cat] > 0 else "resources"
 
+# ------------------------------------------------------------------------------
+# Setup Wizard & Configuration
+# ------------------------------------------------------------------------------
+
+def run_setup_wizard() -> dict:
+    print("\n========================================================================")
+    print("      🤖 AI NOTE SORTER INITIAL SETUP WIZARD                           ")
+    print("========================================================================\n")
+    print("Please choose your preferred AI Provider for note classification:\n")
+    print("  1) Google Antigravity CLI / Gemini 3.6 Flash (Default for AGY environment)")
+    print("  2) Google Gemini API (Free key from AI Studio)")
+    print("  3) OpenAI API (GPT-4o-mini / Codex)")
+    print("  4) Anthropic Claude API (Claude 3.5 Haiku)")
+    print("  5) Ollama Local LLM (qwen2.5:0.5b / llama3.2 - 100% Private Local AI)")
+    print("  6) Fast Rule-Based NLP Classifier (No API key, zero requirements)\n")
+
+    choice = input("Select provider [1-6, default 1]: ").strip() or "1"
+    config = {}
+
+    if choice == "1":
+        config["provider"] = "antigravity"
+    elif choice == "2":
+        config["provider"] = "gemini"
+        config["api_key"] = input("Enter your GEMINI_API_KEY: ").strip()
+    elif choice == "3":
+        config["provider"] = "openai"
+        config["api_key"] = input("Enter your OPENAI_API_KEY: ").strip()
+    elif choice == "4":
+        config["provider"] = "anthropic"
+        config["api_key"] = input("Enter your ANTHROPIC_API_KEY: ").strip()
+    elif choice == "5":
+        config["provider"] = "ollama"
+        model_name = input("Enter Ollama model name [default: qwen2.5:0.5b]: ").strip() or "qwen2.5:0.5b"
+        config["ollama_model"] = model_name
+    else:
+        config["provider"] = "local"
+
+    CONFIG_FILE.parent.mkdir(parents=True, exist_ok=True)
+    with open(CONFIG_FILE, "w") as f:
+        json.dump(config, f, indent=2)
+
+    print(f"\n✅ Configuration saved to {CONFIG_FILE}\n")
+    return config
+
+def load_config() -> dict:
+    if not CONFIG_FILE.exists():
+        return run_setup_wizard()
+    try:
+        with open(CONFIG_FILE, "r") as f:
+            return json.load(f)
+    except Exception:
+        return run_setup_wizard()
+
+def classify_note(title: str, text: str, config: dict) -> str:
+    prompt = PROMPT_TEMPLATE.format(title=title, text=text[:500])
+    provider = config.get("provider", "antigravity")
+
+    try:
+        if provider == "antigravity":
+            cat = call_antigravity(prompt)
+        elif provider == "gemini":
+            cat = call_gemini_api(prompt, config.get("api_key", ""))
+        elif provider == "openai":
+            cat = call_openai_api(prompt, config.get("api_key", ""))
+        elif provider == "anthropic":
+            cat = call_anthropic_api(prompt, config.get("api_key", ""))
+        elif provider == "ollama":
+            cat = call_ollama(prompt, config.get("ollama_model", "qwen2.5:0.5b"))
+        else:
+            cat = call_rule_based(title, text)
+
+        # Parse category from response
+        for target in TARGET_DIRS:
+            if target in cat:
+                return target
+    except Exception as e:
+        print(f"⚠️ Provider {provider} encountered: {e}. Falling back to local classifier...")
+
+    return call_rule_based(title, text)
+
+# ------------------------------------------------------------------------------
+# Main Execution
+# ------------------------------------------------------------------------------
+
 def main():
+    config = load_config()
+
     if not INBOX_DIR.exists():
         print("Inbox folder does not exist.")
         return
@@ -96,14 +223,14 @@ def main():
         print("📥 00-Inbox is clean! No unorganized notes found.")
         return
 
-    print(f"🔍 Found {len(inbox_files)} note(s) in 00-Inbox to organize:\n")
+    print(f"🔍 Found {len(inbox_files)} note(s) in 00-Inbox to organize [Provider: {config.get('provider', 'local')}]:\n")
 
     moved_count = 0
     for note in inbox_files:
         title = note.stem
         text = note.read_text(encoding="utf-8", errors="ignore")
         
-        category = call_gemini_ai(title, text)
+        category = classify_note(title, text, config)
         dest_dir = TARGET_DIRS[category]
         dest_path = dest_dir / note.name
 
@@ -114,7 +241,7 @@ def main():
 
         shutil.move(str(note), str(dest_path))
         rel_dest = dest_path.relative_to(VAULT_DIR)
-        print(f"  🤖 Gemini AI -> Moved '{note.name}' -> {rel_dest}")
+        print(f"  🤖 [{config.get('provider', 'local').upper()}] Moved '{note.name}' -> {rel_dest}")
         moved_count += 1
 
     try:
