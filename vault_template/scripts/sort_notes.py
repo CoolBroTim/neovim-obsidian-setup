@@ -215,8 +215,8 @@ def run_setup_wizard() -> dict:
     print(f"\n✅ Configuration saved to {CONFIG_FILE}\n")
     return config
 
-def load_config() -> dict:
-    if not CONFIG_FILE.exists():
+def load_config(force_wizard: bool = False) -> dict:
+    if force_wizard or not CONFIG_FILE.exists():
         return run_setup_wizard()
     try:
         with open(CONFIG_FILE, "r") as f:
@@ -259,7 +259,8 @@ def classify_note(title: str, text: str, config: dict) -> str:
 # ------------------------------------------------------------------------------
 
 def main():
-    config = load_config()
+    force_wizard = "--config" in sys.argv or "-c" in sys.argv
+    config = load_config(force_wizard=force_wizard)
 
     if not INBOX_DIR.exists():
         print("Inbox folder does not exist.")

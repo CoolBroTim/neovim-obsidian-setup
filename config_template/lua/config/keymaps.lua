@@ -49,4 +49,7 @@ keymap("n", "<leader>mp", "<cmd>MarkdownPreviewToggle<CR>", vim.tbl_extend("forc
 keymap("n", "<leader>gp", "<cmd>!git -C /home/timothy/Notes add -A && (git -C /home/timothy/Notes commit -m 'Sync notes' || true) && git -C /home/timothy/Notes push<CR>", vim.tbl_extend("force", opts, { desc = "Commit and Push Notes to GitHub" }))
 
 -- Run Gemini AI Note Sorting Script (<Space>ai)
-keymap("n", "<leader>ai", "<cmd>!/home/timothy/Notes/scripts/sort_notes.py<CR>", vim.tbl_extend("force", opts, { desc = "Sort Notes with Gemini AI" }))
+keymap("n", "<leader>ai", "<cmd>!/home/timothy/Notes/scripts/sort_notes.py<CR>", vim.tbl_extend("force", opts, { desc = "Sort Notes with AI" }))
+
+-- Configure AI Sorter Provider Wizard (<Space>ac)
+keymap("n", "<leader>ac", "<cmd>terminal python3 /home/timothy/Notes/scripts/sort_notes.py --config<CR>", vim.tbl_extend("force", opts, { desc = "Configure AI Sorter Provider" }))
