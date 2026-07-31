@@ -58,7 +58,6 @@ def call_antigravity(prompt: str) -> str:
     raise RuntimeError("Antigravity CLI failed")
 
 def call_codex_cli(prompt: str) -> str:
-    # Use lowest / fastest model: gpt-4o-mini
     res = subprocess.run(
         ["codex", "exec", "--model", "gpt-4o-mini", prompt],
         capture_output=True, text=True, timeout=10
@@ -68,7 +67,6 @@ def call_codex_cli(prompt: str) -> str:
     raise RuntimeError("Codex CLI failed")
 
 def call_claude_cli(prompt: str) -> str:
-    # Use lowest / fastest model: claude-3-5-haiku
     res = subprocess.run(
         ["claude", "-p", "--model", "claude-3-5-haiku", prompt],
         capture_output=True, text=True, timeout=10
@@ -161,46 +159,54 @@ def detect_api_provider(api_key: str) -> str:
     return "gemini"
 
 def run_setup_wizard() -> dict:
-    print("\n========================================================================")
-    print("      🤖 AI NOTE SORTER INITIAL SETUP WIZARD                           ")
-    print("========================================================================\n")
-    print("Please choose your preferred AI Provider for note classification:\n")
-    print("  1) Cloud API Key (Gemini / OpenAI / Anthropic)")
-    print("  2) Google Antigravity CLI / Gemini 3.6 Flash (agy)")
-    print("  3) Codex CLI (codex --model gpt-4o-mini)")
-    print("  4) Claude Code CLI (claude --model claude-3-5-haiku)")
-    print("  5) Ollama Local LLM (qwen2.5:0.5b / llama3.2 - 100% Private Offline AI)")
-    print("  6) Fast Rule-Based NLP Classifier (No API key, zero requirements)\n")
+    # If running in non-interactive mode (like inside Neovim :! command without TTY)
+    if not sys.stdin.isatty():
+        config = {"provider": "antigravity"}
+        CONFIG_FILE.parent.mkdir(parents=True, exist_ok=True)
+        with open(CONFIG_FILE, "w") as f:
+            json.dump(config, f, indent=2)
+        return config
 
-    choice = input("Select option [1-6, default 2]: ").strip() or "2"
-    config = {}
+    try:
+        print("\n========================================================================")
+        print("      🤖 AI NOTE SORTER INITIAL SETUP WIZARD                           ")
+        print("========================================================================\n")
+        print("Please choose your preferred AI Provider for note classification:\n")
+        print("  1) Cloud API Key (Gemini / OpenAI / Anthropic)")
+        print("  2) Google Antigravity CLI / Gemini 3.6 Flash (agy)")
+        print("  3) Codex CLI (codex --model gpt-4o-mini)")
+        print("  4) Claude Code CLI (claude --model claude-3-5-haiku)")
+        print("  5) Ollama Local LLM (qwen2.5:0.5b / llama3.2 - 100% Private Offline AI)")
+        print("  6) Fast Rule-Based NLP Classifier (No API key, zero requirements)\n")
 
-    if choice == "1":
-        api_key = input("\nEnter your Cloud API Key: ").strip()
-        provider = detect_api_provider(api_key)
-        
-        provider_names = {
-            "gemini": "Google Gemini API (Gemini 1.5 Flash)",
-            "openai": "OpenAI API (GPT-4o-mini)",
-            "anthropic": "Anthropic Claude API (Claude 3.5 Haiku)"
-        }
-        print(f"\n✓ Detected Provider: {provider_names.get(provider, 'Gemini API')}")
-        
-        config["provider"] = provider
-        config["api_key"] = api_key
+        choice = input("Select option [1-6, default 2]: ").strip() or "2"
+        config = {}
 
-    elif choice == "2":
-        config["provider"] = "antigravity"
-    elif choice == "3":
-        config["provider"] = "codex"
-    elif choice == "4":
-        config["provider"] = "claude"
-    elif choice == "5":
-        config["provider"] = "ollama"
-        model_name = input("Enter Ollama model name [default: qwen2.5:0.5b]: ").strip() or "qwen2.5:0.5b"
-        config["ollama_model"] = model_name
-    else:
-        config["provider"] = "local"
+        if choice == "1":
+            api_key = input("\nEnter your Cloud API Key: ").strip()
+            provider = detect_api_provider(api_key)
+            provider_names = {
+                "gemini": "Google Gemini API (Gemini 1.5 Flash)",
+                "openai": "OpenAI API (GPT-4o-mini)",
+                "anthropic": "Anthropic Claude API (Claude 3.5 Haiku)"
+            }
+            print(f"\n✓ Detected Provider: {provider_names.get(provider, 'Gemini API')}")
+            config["provider"] = provider
+            config["api_key"] = api_key
+        elif choice == "2":
+            config["provider"] = "antigravity"
+        elif choice == "3":
+            config["provider"] = "codex"
+        elif choice == "4":
+            config["provider"] = "claude"
+        elif choice == "5":
+            config["provider"] = "ollama"
+            model_name = input("Enter Ollama model name [default: qwen2.5:0.5b]: ").strip() or "qwen2.5:0.5b"
+            config["ollama_model"] = model_name
+        else:
+            config["provider"] = "local"
+    except (EOFError, KeyboardInterrupt):
+        config = {"provider": "antigravity"}
 
     CONFIG_FILE.parent.mkdir(parents=True, exist_ok=True)
     with open(CONFIG_FILE, "w") as f:
