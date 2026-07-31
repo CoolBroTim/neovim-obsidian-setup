@@ -18,6 +18,7 @@ import shutil
 import json
 import subprocess
 import urllib.request
+import urllib.error
 from pathlib import Path
 
 VAULT_DIR = Path("/home/timothy/Notes").expanduser()
@@ -122,9 +123,13 @@ def call_ollama(prompt: str, model_name: str = "qwen2.5:0.5b") -> str:
         "stream": False
     }).encode("utf-8")
     req = urllib.request.Request(url, data=payload, headers={"Content-Type": "application/json"})
-    with urllib.request.urlopen(req, timeout=8) as response:
-        result = json.loads(response.read().decode("utf-8"))
-        return result['response'].strip().lower()
+    try:
+        with urllib.request.urlopen(req, timeout=8) as response:
+            result = json.loads(response.read().decode("utf-8"))
+            return result['response'].strip().lower()
+    except Exception as e:
+        print(f"💡 Ollama tip: Start Ollama ('ollama serve') and pull model ('ollama pull {model_name}')")
+        raise e
 
 def call_rule_based(title: str, text: str) -> str:
     text_lower = text.lower()
@@ -159,7 +164,6 @@ def detect_api_provider(api_key: str) -> str:
     return "gemini"
 
 def run_setup_wizard() -> dict:
-    # If running in non-interactive mode (like inside Neovim :! command without TTY)
     if not sys.stdin.isatty():
         config = {"provider": "antigravity"}
         CONFIG_FILE.parent.mkdir(parents=True, exist_ok=True)
