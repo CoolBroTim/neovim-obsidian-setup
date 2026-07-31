@@ -6,7 +6,7 @@ Supports:
   2. Google Antigravity CLI / Gemini 3.6 Flash
   3. Codex CLI (gpt-4o-mini lowest model)
   4. Claude Code CLI (claude-3-5-haiku lowest model)
-  5. Ollama Local LLM (qwen2.5:0.5b / llama3.2)
+  5. Ollama Local LLM (qwen2.5:0.5b / any model of your choosing)
   6. Rule-Based Fallback Classifier
 
 Configuration stored in ~/.config/note-sorter/config.json
@@ -196,7 +196,7 @@ def run_setup_wizard() -> dict:
         print("  2) Google Antigravity CLI / Gemini 3.6 Flash (agy)")
         print("  3) Codex CLI (codex --model gpt-4o-mini)")
         print("  4) Claude Code CLI (claude --model claude-3-5-haiku)")
-        print("  5) Ollama Local LLM (qwen2.5:0.5b / llama3.2 - 100% Private Offline AI)")
+        print("  5) Ollama Local LLM (qwen2.5:0.5b / any model of your choosing - 100% Private)")
         print("  6) Fast Rule-Based NLP Classifier (No API key, zero requirements)\n")
 
         choice = input("Select option [1-6, default 2]: ").strip() or "2"
